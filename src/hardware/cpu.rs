@@ -221,7 +221,6 @@ impl Core{
 
             Ok(Jmp) => { self.pc = val1; } // Jumps using a register
             Ok(JmpAbs) => { self.pc = val1; } // Jumps with a literal
-
             Ok(JumpZero) => {
                 if val2 >= self.regs.len() {
                     println!("[CPU ERROR] Invalid register in JZF.");
@@ -232,6 +231,18 @@ impl Core{
                 if self.regs[val2] == 0 {
                     self.pc = val1;
                 }
+            }
+            Ok(JumpEqual) => {
+                if val2 >= self.regs.len() || val3 >= self.regs.len() {
+                    println!("[CPU ERROR] Invalid register in JZF.");
+                    self.running = false;
+                    return;
+                }
+
+                if self.regs[val2] == self.regs[val3] {
+                    self.pc = val1;
+                }
+
             }
 
             Ok(DTM) => {

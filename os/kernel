@@ -1,23 +1,15 @@
-; Kernel
-; Timer address = 0x52D00
-
-@data
-!timer_start dq #0x52D00
-
 @text
-.LDI $0 !timer_start
-.LDQ $0 $0          ; $0 = 0x52D00, actual timer MMIO address
+.LDI $0 #1
+.LDI $1 #0x41 ; A
 
-.LDQ $1 $0          ; $1 = start time
+:wait_key
+.JZF :wait_key $0 ; wait until keyboard code writes keycode into $0
 
-:wait
-.LDQ $2 $0          ; $2 = current time
-.SUB $3 $2 $1       ; $3 = elapsed
-.LDI $4 #1000
-.JGE :done $3 $4
+.JEQ :got_a $0 $1 ; if Key = A, exit success
 
-.JMP :wait
+.LDI $0 #0
+.JMP :wait_key
 
-:done
+:got_a
 .LDI $0 #0
 .HLT
