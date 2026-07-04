@@ -7,20 +7,26 @@ pub struct Core{
     pub pc: usize, // Program Counter (points to current instruction)
     pub running: bool,
     pub halted: bool,
-
-    iro: u32
 }
 
 impl Core{
-    pub fn new() -> Self { Self { regs: [0; REG_COUNT as usize], pc: 0, running: false, halted: false, iro: 0, } }
+    pub fn new() -> Self { Self { regs: [0; REG_COUNT as usize], pc: 0, running: false, halted: false} }
 
     pub fn step(&mut self, bus: &mut Bus) {
         use Opcode::*;
 
         if !self.running || self.halted { return; }
 
-        if self.iro != 0 {
-            // todo Interrupt handling
+        if bus.get_interrupts() != 0 {
+            let int = bus.get_interrupts();
+
+            if int & INT_MASK_KEYBOARD as u64 != 0 {
+                for i in IO_INPUT_START..IO_INPUT_START+IO_INPUT_SIZE {
+                    if bus.mem[i] != 0 { self.regs[0] = (i - IO_INPUT_START) as u64; break; }
+                }
+
+                bus.clear_interrupt_mask(INT_MASK_KEYBOARD as u64);
+            }
         }
 
         if INSTR_START > self.pc || self.pc >= INSTR_END {

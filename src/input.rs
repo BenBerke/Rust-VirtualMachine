@@ -1,4 +1,4 @@
-use crate::constants::{IO_INPUT_SIZE, IO_INPUT_START};
+use crate::constants::{INT_MASK_KEYBOARD, IO_INPUT_SIZE, IO_INPUT_START};
 use crate::hardware::bus::Bus;
 use minifb::{Key, Window};
 
@@ -19,11 +19,20 @@ pub fn handle_input(bus: &mut Bus, window: &Window) {
         (Key::Space, 0x20), (Key::Enter, 0x0D), (Key::Backspace, 0x08), (Key::Escape, 0x1B),
     ];
 
+    let mut keyboard_interrupt = false;
+
     for (key, offset) in tracked_keys.iter() {
         let mem_addr = IO_INPUT_START + (*offset as usize);
 
         if mem_addr >= IO_INPUT_START + IO_INPUT_SIZE { panic!("[INPUT] Segfault. Input is beyond the Input MMIO section"); }
 
-        bus.mem[mem_addr] = if window.is_key_down(*key) { 1 } else { 0 };
+        let was_down = bus.mem[mem_addr] != 0;
+        let is_down = window.is_key_down(*key);
+
+        bus.mem[mem_addr] = if is_down { 1 } else { 0 };
+
+        if is_down && !was_down { keyboard_interrupt = true; }
     }
+
+    if keyboard_interrupt { bus.set_interrupt_mask(INT_MASK_KEYBOARD as u64); }
 }

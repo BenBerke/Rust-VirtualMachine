@@ -9,6 +9,9 @@ pub struct Bus {
     pub mem: [u8; SIZE_MEMORY as usize],
     pub disk_drive: File,
     pub timer: Timer,
+
+    interrupts: u64,
+    last_timer_interrupt_tick: u64
 }
 
 impl Bus {
@@ -17,6 +20,8 @@ impl Bus {
             mem: [0; SIZE_MEMORY as usize],
             disk_drive,
             timer: Timer::new(TIMER_TICKS_PER_SECOND), // 1000 ticks/sec = 1 tick per ms
+            interrupts: 0,
+            last_timer_interrupt_tick: 0,
         }
     }
 
@@ -51,6 +56,16 @@ impl Bus {
 
     pub fn read_timer_ticks(&self) -> u64 {
         self.timer.read_ticks()
+    }
+
+    pub fn set_interrupt_mask(&mut self, mask: u64){
+        self.interrupts |= mask;
+    }
+    pub fn get_interrupts(&self) -> u64 {
+        self.interrupts
+    }
+    pub fn clear_interrupt_mask(&mut self, mask: u64) {
+        self.interrupts &= !mask;
     }
 
     pub fn load_sector_from_disk(

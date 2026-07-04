@@ -54,7 +54,9 @@ pub const TIMER_TICKS_PER_SECOND: u64 = 1000;
 // ==========================
 // Interrupt Mask
 // ==========================
-pub const INT_MASK_KEYBOARD: u64 = 2;
+pub const INT_MASK_TIMER: usize = 1;
+pub const INT_MASK_KEYBOARD: usize = 2;
+pub const TIMER_INTERRUPT_PERIOD_TICKS: u64 = 16;
 
 // ==========================
 // SYSTEM CALLSs
