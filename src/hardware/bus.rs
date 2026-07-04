@@ -16,7 +16,7 @@ impl Bus {
         Self {
             mem: [0; SIZE_MEMORY as usize],
             disk_drive,
-            timer: Timer::new(1000), // 1000 ticks/sec = 1 tick per ms
+            timer: Timer::new(TIMER_TICKS_PER_SECOND), // 1000 ticks/sec = 1 tick per ms
         }
     }
 
@@ -47,6 +47,10 @@ impl Bus {
         let mut bytes = [0u8; 8];
         bytes.copy_from_slice(&self.mem[addr..addr + 8]);
         u64::from_le_bytes(bytes)
+    }
+
+    pub fn read_timer_ticks(&self) -> u64 {
+        self.timer.read_ticks()
     }
 
     pub fn load_sector_from_disk(

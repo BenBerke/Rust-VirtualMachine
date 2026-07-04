@@ -265,6 +265,19 @@ impl Core{
                 }
             }
 
+            Ok(SYS) => {
+                let call_id = self.regs[0];
+
+                match call_id{
+                    SYS_TIMER => { self.regs[0] = bus.read_timer_ticks() }
+                    SYS_HZ => { self.regs[0] = CYCLES_PER_FRAME as u64 }
+                    _ => {
+                        println!("[CPU ERROR] Unknown syscall: {}", call_id);
+                        self.regs[0] = SYS_ERR_UNKNOWN;
+                    }
+                }
+            }
+
             Ok(JGE) => { if self.regs[val2] >= self.regs[val3] { self.pc = val1; } }
 
             Err(_) => {

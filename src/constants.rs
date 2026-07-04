@@ -49,9 +49,16 @@ pub const KERNEL_CODE_ADDRESS: usize = KERNEL_LOAD_ADDRESS + KERNEL_HEADER_SIZE;
 pub const CYCLES_PER_FRAME: usize = 50_000;
 pub const IO_TIMER_START: usize = 0x52D00;
 pub const IO_TIMER_SIZE: usize = 8;
+pub const TIMER_TICKS_PER_SECOND: u64 = 1000;
 
 // ==========================
 // Interrupt Mask
 // ==========================
-pub const INT_MASK_TIMER: u32 = 1;
-pub const INT_MASK_KEYBOARD: u32 = 2;
+pub const INT_MASK_KEYBOARD: u64 = 2;
+
+// ==========================
+// SYSTEM CALLSs
+// ==========================
+pub const SYS_ERR_UNKNOWN: u64 = u64::MAX;
+pub const SYS_TIMER: u64 = 1;
+pub const SYS_HZ: u64 = 2;
