@@ -39,6 +39,22 @@ impl Bus {
         self.mem[addr]
     }
 
+    pub fn write_byte(&mut self, addr: usize, value: u8) -> bool {
+        if addr >= SIZE_MEMORY {
+            println!("[BUS] Out-of-bounds write at 0x{:05X}", addr);
+            return false;
+        }
+
+        self.mem[addr] = value;
+
+        if addr == IO_INPUT_START {
+            if value == 0 { self.clear_interrupt_mask(INT_MASK_KEYBOARD as u64); }
+            else { self.set_interrupt_mask(INT_MASK_KEYBOARD as u64); }
+        }
+
+        true
+    }
+
     pub fn read_u64(&self, addr: usize) -> u64 {
         if addr == IO_TIMER_START {
             return self.timer.read_ticks();
@@ -68,11 +84,7 @@ impl Bus {
         self.interrupts &= !mask;
     }
 
-    pub fn load_sector_from_disk(
-        &mut self,
-        sector_number: u64,
-        ram_target_address: usize,
-    ) -> bool {
+    pub fn load_sector_from_disk(&mut self, sector_number: u64, ram_target_address: usize,) -> bool {
         let disk_offset = sector_number * SIZE_SECTOR;
 
         if let Err(err) = self.disk_drive.seek(SeekFrom::Start(disk_offset)) {
@@ -83,7 +95,7 @@ impl Bus {
         let start = ram_target_address;
         let end = start + SIZE_SECTOR as usize;
 
-        if end > SIZE_MEMORY as usize {
+        if end > SIZE_MEMORY {
             println!(
                 "[DISK ERROR] Sector load target out of RAM bounds: {}..{}",
                 start,

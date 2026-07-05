@@ -1,15 +1,18 @@
 @text
-.LDI $0 #1
-.LDI $1 #0x41 ; A
+.LDI $4 #0x52C00
+.LDI $1 #0x41
+.LDI $2 #0
 
 :wait_key
-.JZF :wait_key $0 ; wait until keyboard code writes keycode into $0
+.LDB $0 $4
+.JZF :wait_key $0
 
-.JEQ :got_a $0 $1 ; if Key = A, exit success
+.JEQ :got_a $0 $1
 
-.LDI $0 #0
+.STB $4 $2
 .JMP :wait_key
 
 :got_a
+.STB $4 $2
 .LDI $0 #0
 .HLT
