@@ -9,8 +9,6 @@ use crate::hardware::cpu::Core;
 use crate::hardware::screen;
 use crate::input::handle_input;
 
-use std::time::Instant;
-
 pub struct Motherboard {
     pub cpu: Core,
     pub bus: Bus,
