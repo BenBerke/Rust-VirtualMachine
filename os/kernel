@@ -1,15 +1,17 @@
 @text
-.LDI $4 #0x52C00
-.LDI $1 #0x41
-.LDI $2 #0
+.LDI $4 #0x52C00    ; keyboard event byte
+.LDI $1 #0x41       ; A
+.LDI $2 #0          ; zero
 
 :wait_key
-.LDB $0 $4
-.JZF :wait_key $0
+.WFI                ; wait until some interrupt exists
+
+.LDB $0 $4          ; read keyboard event
+.JZF :wait_key $0   ; interrupt was not keyboard / no key event
 
 .JEQ :got_a $0 $1
 
-.STB $4 $2
+.STB $4 $2          ; clear key event
 .JMP :wait_key
 
 :got_a

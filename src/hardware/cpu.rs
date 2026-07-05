@@ -17,18 +17,6 @@ impl Core{
 
         if !self.running || self.halted { return; }
 
-        if bus.get_interrupts() != 0 {
-            let int = bus.get_interrupts();
-
-            if int & INT_MASK_KEYBOARD as u64 != 0 {
-                for i in IO_INPUT_START..IO_INPUT_START+IO_INPUT_SIZE {
-                    if bus.mem[i] != 0 { self.regs[0] = (i - IO_INPUT_START) as u64; break; }
-                }
-
-                bus.clear_interrupt_mask(INT_MASK_KEYBOARD as u64);
-            }
-        }
-
         if INSTR_START > self.pc || self.pc >= INSTR_END {
             println!("[CPU] Segfault. PC (0x{:04X}) attempted to execute non-code memory.", self.pc);
             self.running = false;
@@ -171,7 +159,11 @@ impl Core{
                 let addr = self.regs[addr_reg] as usize;
                 let value = self.regs[src_reg];
 
-                bus.mem[addr] = (value & 0xFF) as u8;
+                if !bus.write_byte(addr, (value & 0xFF) as u8) {
+                    println!("[CPU ERROR] STB issue in writing byte.");
+                    self.running = false;
+                    return;
+                }
             }
 
             Ok(ST16) => {
@@ -296,6 +288,10 @@ impl Core{
             }
 
             Ok(JGE) => { if self.regs[val2] >= self.regs[val3] { self.pc = val1; } }
+
+            Ok(WFI) => {
+                if bus.get_interrupts() == 0 { self.pc -= 8; return; }
+            }
 
             Err(_) => {
                 println!("[CPU ERROR] Unknown opcode '{}'", opcode);
