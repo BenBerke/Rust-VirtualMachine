@@ -2,7 +2,7 @@ use std::fs::File;
 
 use minifb::Window;
 
-use crate::constants::{CYCLES_PER_FRAME, SCREEN_HEIGHT, SCREEN_WIDTH, VRAM_SIZE, VRAM_START};
+use crate::constants::{CYCLES_PER_FRAME, SCREEN_HEIGHT, SCREEN_WIDTH, VRAM_SIZE, VRAM_START, SP_REG, STACK_END};
 
 use crate::hardware::bus::Bus;
 use crate::hardware::cpu::Core;
@@ -44,6 +44,8 @@ impl Motherboard {
             self.cpu.pc = 0x0;
             self.cpu.running = true;
             self.cpu.halted = false;
+
+            self.cpu.regs[SP_REG] = STACK_END as u64;
 
             return true;
         }

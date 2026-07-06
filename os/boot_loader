@@ -4,17 +4,19 @@
 ; 512 should be 0x44
 ; 513 should be 0xBB
 ; Otherwise it means the kernel is missing
+; $1 = SP, reserved. Do not touch.
+; Bootloader does not support @data section
 
 ; === Load Sector 1 to RAM ===
-.LDI $1 #1
-.DTM %512 %1 $1 ; Pull Sector 1 from disk into RAM addresses 512-1024
+.LDI $3 #1
+.DTM %512 %1 $3 ; Pull Sector 1 from disk into RAM addresses 512-1024
 
 ; === Validate Kernel ===
 .LDI $0 #512
-.LDW $1 $0
+.LDW $3 $0
 .LDI $2 #0xBB44
-.SUB $1 $1 $2
-.JZF :boot_kernel $1
+.SUB $3 $3 $2
+.JZF :boot_kernel $3
 
 ; == Kernel Missing ==
 .LDI $0 #0xDEAD
@@ -22,8 +24,8 @@
 
 :boot_kernel
 .LDI $0 #514 ; Sector Count
-.LDW $1 $0
-.DTM %512 %1 $1 ; Reload the full kernel
+.LDW $3 $0
+.DTM %512 %1 $3 ; Reload the full kernel
 .JAB %516
 
 ; == Fail Safe ==

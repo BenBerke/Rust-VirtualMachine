@@ -85,6 +85,18 @@ impl Bus {
         u64::from_le_bytes(bytes)
     }
 
+    pub fn write_u64(&mut self, addr: usize, value: u64) -> bool {
+        if addr + 8 > SIZE_MEMORY {
+            println!("[BUS] Out-of-bounds u64 write at 0x{:05X}", addr);
+            return false;
+        }
+
+        let bytes = value.to_le_bytes();
+        self.mem[addr..addr + 8].copy_from_slice(&bytes);
+
+        true
+    }
+
     pub fn read_timer_ticks(&self) -> u64 {
         self.timer.read_ticks()
     }

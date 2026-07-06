@@ -199,7 +199,9 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
             Ok(JGE) | Ok(JumpEqual) => check_op_type(arg1, Sym) && check_op_type(arg2, Reg) && check_op_type(arg3, Reg),
             Ok(JumpZero) => check_op_type(arg1, Sym) && check_op_type(arg2, Reg),
             Ok(DTM) => check_op_type(arg1, Imm32) && check_op_type(arg2, Imm32) && check_op_type(arg3, Reg),
-            Ok(SYS) | Ok(WFI) => true,
+            Ok(SYS) | Ok(WFI) | Ok(RET) => true,
+            Ok(POP) | Ok(PUSH) => check_op_type(arg1, Reg),
+            Ok(CALL) => check_op_type(arg1, Sym),
             Err(_) => false,
         };
 

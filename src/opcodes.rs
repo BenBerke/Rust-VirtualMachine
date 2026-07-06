@@ -54,4 +54,8 @@ define_opcodes! {
     WFI = 23 => "WFI",
     AND = 24 => "AND", // reg1 reg2 reg3 / reg1 = reg2 & reg3
     MOD = 25 => "MOD", //reg1 reg2 reg3 / reg1 = reg2 % reg3
+    PUSH = 26 => "PUSH", // reg
+    POP = 27 => "POP", // reg
+    CALL = 28 => "CLL",
+    RET = 29 => "RET",
 }

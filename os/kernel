@@ -1,36 +1,54 @@
-; Kernel - wait until A is pressed using keyboard event ring buffer
+; Kernel
+; $1 = SP
 
 @text
-.LDI $4 #0x52C60    ; queue head address
-.LDI $5 #0x52C61    ; queue tail address
-.LDI $6 #0x52C62    ; queue data start address
+.LDI $2 #0x41       ; ASCII A
 
-.LDI $1 #0x41       ; ASCII A
-.LDI $2 #32         ; queue capacity
-.LDI $3 #1          ; increment value
+:main_loop
+.CLL :read_key
 
-:wait_key
-.WFI                ; sleep until an interrupt exists
-
-.LDB $0 $4          ; $0 = head
-.LDB $7 $5          ; $7 = tail
-
-.JEQ :wait_key $0 $7 ; if head == tail, queue is empty
-
-; read keycode = queue_data[head]
-.ADD $7 $6 $0       ; $7 = queue data address + head
-.LDB $7 $7          ; $7 = keycode
-
-; head = (head + 1) % 32
-.ADD $0 $0 $3
-.MOD $0 $0 $2
-.STB $4 $0          ; store new head
-
-; check key
-.JEQ :got_a $7 $1
-
-.JMP :wait_key
+.JEQ :got_a $0 $2   ; compare returned key with A
+.JMP :main_loop
 
 :got_a
 .LDI $0 #0
 .HLT
+
+
+:read_key
+.PUSH $2
+.PUSH $3
+.PUSH $4
+.PUSH $5
+.PUSH $6
+
+.LDI $2 #0x52C60    ; queue head address
+.LDI $3 #0x52C61    ; queue tail address
+.LDI $4 #0x52C62    ; queue data start address
+.LDI $5 #32         ; queue capacity
+
+:read_key_wait
+.WFI
+
+.LDB $0 $2          ; $0 = head
+.LDB $6 $3          ; $6 = tail
+
+.JEQ :read_key_wait $0 $6 ; empty if head == tail
+
+; read keycode = queue_data[head]
+.ADD $6 $4 $0
+.LDB $0 $6          ; $0 = keycode
+
+; head = (head + 1) % 32
+.LDB $6 $2
+.LDI $4 #1
+.ADD $6 $6 $4
+.MOD $6 $6 $5
+.STB $2 $6
+
+.POP $6
+.POP $5
+.POP $4
+.POP $3
+.POP $2
+.RET

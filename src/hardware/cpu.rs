@@ -1,10 +1,10 @@
 use crate::constants::*;
 use crate::hardware::bus::Bus;
 use crate::opcodes::*;
-use crate::opcodes::Opcode::AND;
+use crate::opcodes::Opcode::{AND, PUSH};
 
 pub struct Core{
-    pub regs: [u64; REG_COUNT as usize], // reg0 = return / sys call reg
+    pub regs: [u64; REG_COUNT as usize], // reg0 = sys call, reg 1 = SP
 
     pub pc: usize, // Program Counter (points to current instruction)
     pub running: bool,
@@ -13,6 +13,35 @@ pub struct Core{
 
 impl Core{
     pub fn new() -> Self { Self { regs: [0; REG_COUNT as usize], pc: 0, running: false, halted: false} }
+
+    fn push_u64(&mut self, bus: &mut Bus, value: u64) -> bool {
+        self.regs[SP_REG] = self.regs[SP_REG].wrapping_sub(8);
+
+        let sp = self.regs[SP_REG] as usize;
+
+        if sp < STACK_START || sp+8 > STACK_END + 1 {
+            println!("[CPU ERROR] Stack overflow at 0x{:X}", sp);
+            self.running = false;
+            return false;
+        }
+
+        bus.write_u64(sp, value)
+    }
+
+    fn pop_u64(&mut self, bus: &mut Bus) -> Option<u64> {
+        let sp = self.regs[SP_REG] as usize;
+
+        if sp < STACK_START || sp + 8 > STACK_END + 1 {
+            println!("[CPU ERROR] Stack underflow at 0x{:X}", sp);
+            self.running = false;
+            return None;
+        }
+
+        let value = bus.read_u64(sp);
+        self.regs[SP_REG] = self.regs[SP_REG].wrapping_add(8);
+
+        Some(value)
+    }
 
     pub fn step(&mut self, bus: &mut Bus) {
         use Opcode::*;
@@ -108,7 +137,6 @@ impl Core{
 
                 self.regs[dest_reg] = bus.read_byte(addr) as u64;
             }
-
             Ok(LD16) => {
                 let dest_reg = val1;
                 let src_reg = val2;
@@ -132,7 +160,6 @@ impl Core{
 
                 self.regs[dest_reg] = low | (high << 8);
             }
-
             Ok(LD64) => {
                 let dest_reg = val1;
                 let src_reg = val2;
@@ -167,7 +194,6 @@ impl Core{
                     return;
                 }
             }
-
             Ok(ST16) => {
                 let addr_reg = val1;
                 let src_reg = val2;
@@ -190,7 +216,6 @@ impl Core{
                 bus.mem[addr] = (value & 0xFF) as u8;
                 bus.mem[addr + 1] = ((value >> 8) & 0xFF) as u8;
             }
-
             Ok(ST64) => {
                 let addr_reg = val1;
                 let src_reg = val2;
@@ -296,6 +321,60 @@ impl Core{
             Ok(AND) => { self.regs[val1] = self.regs[val2] & self.regs[val3] }
 
             Ok(MOD) => { self.regs[val1] = self.regs[val2] % self.regs[val3] }
+
+            Ok(PUSH) => {
+                let src_reg = val1;
+
+                if src_reg >= self.regs.len() {
+                    println!("[CPU ERROR] Invalid register in PUSH.");
+                    self.running = false;
+                    return;
+                }
+
+                if !self.push_u64(bus, self.regs[src_reg]){ return; }
+            }
+
+            Ok(POP) => {
+                let dest_reg = val1;
+
+                if dest_reg >= self.regs.len() {
+                    println!("[CPU ERROR] Invalid register in POP.");
+                    self.running = false;
+                    return;
+                }
+
+                let Some(value) = self.pop_u64(bus) else { return; };
+
+                self.regs[dest_reg] = value;
+            }
+
+            Ok(CALL)  => {
+                let target = val1;
+
+                if target < INSTR_START || target >= INSTR_END {
+                    println!("[CPU ERROR] CALL target outside code memory: 0x{:X}", target);
+                    self.running = false;
+                    return;
+                }
+
+                if !self.push_u64(bus, self.pc as u64) { return; }
+
+                self.pc = target;
+            }
+
+            Ok(RET) => {
+                let Some(return_addr) = self.pop_u64(bus) else { return; };
+
+                let return_addr = return_addr as usize;
+
+                if return_addr < INSTR_START || return_addr >= INSTR_END {
+                    println!("[CPU ERROR] RET target outside code memory: 0x{:X}", return_addr);
+                    self.running = false;
+                    return;
+                }
+
+                self.pc = return_addr;
+            }
 
             Err(_) => {
                 println!("[CPU ERROR] Unknown opcode '{}'", opcode);

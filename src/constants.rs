@@ -12,6 +12,8 @@ pub const SCREEN_VIRTUAL_HEIGHT: usize = SCREEN_HEIGHT * 3;
 // MEMORY LAYOUT SEGMENTS (HEX ENCODED)
 // =========================================================================
 
+pub const SP_REG: usize = 1;
+
 // Bank 0: Instructions / Executable Code (128 KB)
 pub const INSTR_START: usize = 0x00000;
 pub const INSTR_END: usize   = 0x1FFFF;
