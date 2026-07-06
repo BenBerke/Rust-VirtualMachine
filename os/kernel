@@ -32,8 +32,17 @@
 
 :write_char
 .LDI $2 #0x40000        ; VRAM_START
-.ADD $2 $2 $7           ; address = VRAM_START + cursor
-.STB $2 $0              ; write keycode to text cell
+
+.ADD $3 $7 $7           ; byte_offset = cursor * 2
+.ADD $2 $2 $3           ; address = VRAM_START + byte_offset
+
+.STB $2 $0              ; glyph byte
+
+.LDI $3 #1
+.ADD $2 $2 $3           ; attr address
+
+.LDI $3 #0x30           ; black text on white background
+.STB $2 $3              ; attr byte
 
 .LDI $2 #1
 .ADD $7 $7 $2           ; cursor++
@@ -57,10 +66,17 @@
 .SUB $7 $7 $2           ; cursor--
 
 .LDI $2 #0x40000
-.ADD $2 $2 $7           ; address = VRAM_START + cursor
+.ADD $3 $7 $7           ; byte_offset = cursor * 2
+.ADD $2 $2 $3           ; address = VRAM_START + byte_offset
 
 .LDI $3 #0x20           ; space
-.STB $2 $3              ; erase character
+.STB $2 $3              ; erase glyph
+
+.LDI $3 #1
+.ADD $2 $2 $3           ; attr address
+
+.LDI $3 #0x30           ; black on white
+.STB $2 $3
 
 .JMP :main_loop
 
@@ -84,8 +100,18 @@
 :clear_loop
 .JGE :clear_done $3 $4
 
-.ADD $6 $2 $3           ; address = VRAM_START + i
-.STB $6 $5              ; write space
+.ADD $6 $3 $3           ; byte_offset = i * 2
+.ADD $6 $2 $6           ; address = VRAM_START + byte_offset
+
+.STB $6 $5              ; glyph byte = space
+
+.LDI $5 #1
+.ADD $6 $6 $5           ; attr address
+
+.LDI $5 #0x30           ; black text on white background
+.STB $6 $5              ; attr byte
+
+.LDI $5 #0x20           ; restore space
 
 .LDI $6 #1
 .ADD $3 $3 $6           ; i++

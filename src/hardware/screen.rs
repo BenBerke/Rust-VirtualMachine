@@ -83,7 +83,13 @@ impl Screen {
         self.framebuffer.fill(lookup_palette(0));
 
         for cell in 0..TEXT_CELL_COUNT {
-            let ascii = mem[VRAM_START + cell];
+            let cell_addr = VRAM_START + cell * TEXT_CELL_SIZE;
+
+            let ascii = mem[cell_addr];
+            let attr = mem[cell_addr + 1];
+
+            let fg_color_index = (attr & 0x0F) as usize;
+            let bg_color_index = ((attr >> 4) & 0x0F) as usize;
 
             let char_x = cell % TEXT_COLS;
             let char_y = cell / TEXT_COLS;
@@ -92,8 +98,8 @@ impl Screen {
                 char_x * FONT_WIDTH,
                 char_y * FONT_HEIGHT,
                 ascii,
-                15,
-                0,
+                fg_color_index,
+                bg_color_index,
             );
         }
     }
