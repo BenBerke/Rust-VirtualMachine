@@ -50,6 +50,8 @@ define_opcodes! {
     ST64 = 19 => "STQ", // reg reg / mem[addr_reg..addr_reg+8] = full 64 bits
     JGE = 20 => "JGE", // sym reg1 reg2 / jump if reg1 > reg2
     SYS = 21 => "SYS",
-    JumpEqual = 22 => "JEQ",// sym reg1 reg1 / jump if reg1 = reg2
+    JumpEqual = 22 => "JEQ",// sym reg1 reg2 / jump if reg1 = reg2
     WFI = 23 => "WFI",
+    AND = 24 => "AND", // reg1 reg2 reg3 / reg1 = reg2 & reg3
+    MOD = 25 => "MOD", //reg1 reg2 reg3 / reg1 = reg2 % reg3
 }

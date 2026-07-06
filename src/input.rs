@@ -33,6 +33,6 @@ pub fn handle_input(bus: &mut Bus, window: &Window) {
         if is_down && !was_down && key_event == 0 { key_event = offset as u8; }
     }
     if key_event != 0 && bus.mem[IO_INPUT_START] == 0 {
-        bus.write_byte(IO_INPUT_START, key_event);
+        bus.push_key_event(key_event);
     }
 }

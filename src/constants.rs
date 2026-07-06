@@ -29,6 +29,10 @@ pub const VRAM_END: usize = VRAM_START + VRAM_SIZE; // Ends at 0x52C00
 pub const MMIO_END: usize = 0x5FFFF; // Remaining ~51KB for audio/input/palettes
 pub const IO_INPUT_START: usize = VRAM_END; // 0x52C00
 pub const IO_INPUT_SIZE: usize = 128;
+pub const IO_INPUT_QUEUE_HEAD: usize = IO_INPUT_START + 0x60;
+pub const IO_INPUT_QUEUE_TAIL: usize = IO_INPUT_START + 0x61;
+pub const IO_INPUT_QUEUE_DATA: usize = IO_INPUT_START + 0x62;
+pub const IO_INPUT_QUEUE_CAPACITY: usize = 32;
 
 // Bank 3: User Space Heap / Graphics Backbuffer (112 KB)
 pub const USER_START: usize = 0x60000;

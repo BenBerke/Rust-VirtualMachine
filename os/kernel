@@ -1,20 +1,36 @@
+; Kernel - wait until A is pressed using keyboard event ring buffer
+
 @text
-.LDI $4 #0x52C00    ; keyboard event byte
-.LDI $1 #0x41       ; A
-.LDI $2 #0          ; zero
+.LDI $4 #0x52C60    ; queue head address
+.LDI $5 #0x52C61    ; queue tail address
+.LDI $6 #0x52C62    ; queue data start address
+
+.LDI $1 #0x41       ; ASCII A
+.LDI $2 #32         ; queue capacity
+.LDI $3 #1          ; increment value
 
 :wait_key
-.WFI                ; wait until some interrupt exists
+.WFI                ; sleep until an interrupt exists
 
-.LDB $0 $4          ; read keyboard event
-.JZF :wait_key $0   ; interrupt was not keyboard / no key event
+.LDB $0 $4          ; $0 = head
+.LDB $7 $5          ; $7 = tail
 
-.JEQ :got_a $0 $1
+.JEQ :wait_key $0 $7 ; if head == tail, queue is empty
 
-.STB $4 $2          ; clear key event
+; read keycode = queue_data[head]
+.ADD $7 $6 $0       ; $7 = queue data address + head
+.LDB $7 $7          ; $7 = keycode
+
+; head = (head + 1) % 32
+.ADD $0 $0 $3
+.MOD $0 $0 $2
+.STB $4 $0          ; store new head
+
+; check key
+.JEQ :got_a $7 $1
+
 .JMP :wait_key
 
 :got_a
-.STB $4 $2
 .LDI $0 #0
 .HLT

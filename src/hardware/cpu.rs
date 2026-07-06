@@ -1,6 +1,8 @@
 use crate::constants::*;
 use crate::hardware::bus::Bus;
 use crate::opcodes::*;
+use crate::opcodes::Opcode::AND;
+
 pub struct Core{
     pub regs: [u64; REG_COUNT as usize], // reg0 = return / sys call reg
 
@@ -289,9 +291,11 @@ impl Core{
 
             Ok(JGE) => { if self.regs[val2] >= self.regs[val3] { self.pc = val1; } }
 
-            Ok(WFI) => {
-                if bus.get_interrupts() == 0 { self.pc -= 8; return; }
-            }
+            Ok(WFI) => { if bus.get_interrupts() == 0 { self.pc -= 8; return; } }
+
+            Ok(AND) => { self.regs[val1] = self.regs[val2] & self.regs[val3] }
+
+            Ok(MOD) => { self.regs[val1] = self.regs[val2] % self.regs[val3] }
 
             Err(_) => {
                 println!("[CPU ERROR] Unknown opcode '{}'", opcode);

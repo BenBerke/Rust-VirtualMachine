@@ -25,6 +25,21 @@ impl Bus {
         }
     }
 
+    pub fn push_key_event(&mut self, keycode: u8) {
+        let head = self.mem[IO_INPUT_QUEUE_HEAD] as usize;
+        let tail = self.mem[IO_INPUT_QUEUE_TAIL] as usize;
+
+        let next_tail = (tail + 1) % IO_INPUT_QUEUE_CAPACITY;
+
+        // Queue full: drop newest event.
+        if next_tail == head { return; }
+
+        self.mem[IO_INPUT_QUEUE_DATA + tail] = keycode;
+        self.mem[IO_INPUT_QUEUE_TAIL] = next_tail as u8;
+
+        self.set_interrupt_mask(INT_MASK_KEYBOARD as u64);
+    }
+
     pub fn read_byte(&self, addr: usize) -> u8 {
         if addr >= IO_TIMER_START && addr < IO_TIMER_START + IO_TIMER_SIZE {
             let offset = addr - IO_TIMER_START;
