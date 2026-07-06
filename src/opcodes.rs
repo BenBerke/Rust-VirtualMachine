@@ -58,4 +58,7 @@ define_opcodes! {
     POP = 27 => "POP", // reg
     CALL = 28 => "CLL",
     RET = 29 => "RET",
+    OR = 30 => "OR", //reg1 reg2 reg3 / reg 1 = reg2 | reg3
+    SHL = 31 => "SHL", // reg1 reg2 reg3 / reg 1 = reg2 << reg3
+    SHR = 32 => "SHR", // reg1 reg2 reg3 / reg 1 = reg2 >> reg3
 }

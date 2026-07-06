@@ -30,11 +30,19 @@ pub const VRAM_SIZE: usize = SCREEN_WIDTH * SCREEN_HEIGHT; // 76,800 Bytes (~75K
 pub const VRAM_END: usize = VRAM_START + VRAM_SIZE; // Ends at 0x52C00
 pub const MMIO_END: usize = 0x5FFFF; // Remaining ~51KB for audio/input/palettes
 pub const IO_INPUT_START: usize = VRAM_END; // 0x52C00
+pub const SCREEN_MODE_PIXEL: u8 = 0;
+pub const SCREEN_MODE_TEXT: u8 = 1;
+pub const FONT_WIDTH: usize = 8;
+pub const FONT_HEIGHT: usize = 8;
+pub const TEXT_COLS: usize = SCREEN_WIDTH / FONT_WIDTH;   // 40
+pub const TEXT_ROWS: usize = SCREEN_HEIGHT / FONT_HEIGHT; // 30
+pub const TEXT_CELL_COUNT: usize = TEXT_COLS * TEXT_ROWS; // 1200
 pub const IO_INPUT_SIZE: usize = 128;
-pub const IO_INPUT_QUEUE_HEAD: usize = IO_INPUT_START + 0x60;
-pub const IO_INPUT_QUEUE_TAIL: usize = IO_INPUT_START + 0x61;
-pub const IO_INPUT_QUEUE_DATA: usize = IO_INPUT_START + 0x62;
+pub const IO_INPUT_QUEUE_HEAD: usize = IO_INPUT_START + 0x5B;
+pub const IO_INPUT_QUEUE_TAIL: usize = IO_INPUT_START + 0x5C;
+pub const IO_INPUT_QUEUE_DATA: usize = IO_INPUT_START + 0x5D;
 pub const IO_INPUT_QUEUE_CAPACITY: usize = 32;
+pub const IO_SCREEN_MODE: usize = IO_INPUT_START + IO_INPUT_SIZE; // 0x52C80
 
 // Bank 3: User Space Heap / Graphics Backbuffer (112 KB)
 pub const USER_START: usize = 0x60000;
@@ -70,3 +78,12 @@ pub const TIMER_INTERRUPT_PERIOD_TICKS: u64 = 16;
 pub const SYS_ERR_UNKNOWN: u64 = u64::MAX;
 pub const SYS_TIMER: u64 = 1;
 pub const SYS_HZ: u64 = 2;
+
+// ==========================
+// FONT ATLAS
+// ==========================
+pub const FONT_ATLAS_COLS: usize = 16;
+pub const FONT_ATLAS_ROWS: usize = 16;
+pub const FONT_ATLAS_WIDTH: usize = FONT_ATLAS_COLS * FONT_WIDTH;   // 128
+pub const FONT_ATLAS_HEIGHT: usize = FONT_ATLAS_ROWS * FONT_HEIGHT; // 128
+pub const FONT_ATLAS_BYTE_SIZE: usize = (FONT_ATLAS_WIDTH * FONT_ATLAS_HEIGHT) / 8;

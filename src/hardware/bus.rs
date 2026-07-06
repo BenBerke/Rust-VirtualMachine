@@ -60,10 +60,23 @@ impl Bus {
             return false;
         }
 
+        if addr == IO_SCREEN_MODE {
+            if value != SCREEN_MODE_TEXT && value != SCREEN_MODE_PIXEL {
+                println!("[BUS] Invalid Screen Mode");
+                return false;
+            }
+
+            self.mem[addr] = value;
+            return true;
+        }
+
         self.mem[addr] = value;
 
-        if addr == IO_INPUT_START {
-            if value == 0 { self.clear_interrupt_mask(INT_MASK_KEYBOARD as u64); }
+        if addr == IO_INPUT_QUEUE_HEAD {
+            let head = self.mem[IO_INPUT_QUEUE_HEAD];
+            let tail = self.mem[IO_INPUT_QUEUE_TAIL];
+
+            if head == tail { self.clear_interrupt_mask(INT_MASK_KEYBOARD as u64); }
             else { self.set_interrupt_mask(INT_MASK_KEYBOARD as u64); }
         }
 

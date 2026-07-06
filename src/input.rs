@@ -1,4 +1,4 @@
-use crate::constants::{INT_MASK_KEYBOARD, IO_INPUT_SIZE, IO_INPUT_START};
+use crate::constants::{IO_INPUT_SIZE, IO_INPUT_START};
 use crate::hardware::bus::Bus;
 use minifb::{Key, Window};
 
@@ -15,7 +15,10 @@ pub fn handle_input(bus: &mut Bus, window: &Window) {
         (Key::Key4, 0x34), (Key::Key5, 0x35), (Key::Key6, 0x36), (Key::Key7, 0x37),
         (Key::Key8, 0x38), (Key::Key9, 0x39),
 
-        (Key::Space, 0x20), (Key::Enter, 0x0D), (Key::Backspace, 0x08), (Key::Escape, 0x1B),
+        (Key::Space, 0x20),
+        (Key::Enter, 0x0D),
+        (Key::Backspace, 0x08),
+        (Key::Escape, 0x1B),
     ];
 
     let mut key_event = 0u8;
@@ -28,11 +31,14 @@ pub fn handle_input(bus: &mut Bus, window: &Window) {
         let was_down = bus.mem[mem_addr] != 0;
         let is_down = window.is_key_down(key);
 
+        // Held-state table:
+        // IO_INPUT_START + ASCII = 1 if held, 0 if released.
         bus.mem[mem_addr] = if is_down { 1 } else { 0 };
 
+        // Press event:
+        // only queue once when key transitions from up -> down.
         if is_down && !was_down && key_event == 0 { key_event = offset as u8; }
     }
-    if key_event != 0 && bus.mem[IO_INPUT_START] == 0 {
-        bus.push_key_event(key_event);
-    }
+
+    if key_event != 0 { bus.push_key_event(key_event); }
 }

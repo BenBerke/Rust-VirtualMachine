@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::hardware::bus::Bus;
 use crate::opcodes::*;
-use crate::opcodes::Opcode::{AND, PUSH};
+use crate::opcodes::Opcode::{AND, PUSH, SHL};
 
 pub struct Core{
     pub regs: [u64; REG_COUNT as usize], // reg0 = sys call, reg 1 = SP
@@ -375,6 +375,10 @@ impl Core{
 
                 self.pc = return_addr;
             }
+
+            Ok(SHL) => { self.regs[val1] = self.regs[val2] << self.regs[val3]; }
+            Ok(SHR) => { self.regs[val1] = self.regs[val2] >> self.regs[val3]; }
+            Ok(OR) => { self.regs[val1] = self.regs[val2] | self.regs[val3]; }
 
             Err(_) => {
                 println!("[CPU ERROR] Unknown opcode '{}'", opcode);

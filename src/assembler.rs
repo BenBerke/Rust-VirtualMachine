@@ -189,7 +189,7 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
         let is_valid = match Opcode::try_from(opcode_val as u16) {
             Ok(Halt) => true,
             Ok(LoadImm) => check_op_type(arg1, Reg) && (check_op_type(arg2, Imm) || check_op_type(arg2, Data)),
-            Ok(Add) | Ok(Sub) | Ok(Mul) | Ok(Div) | Ok(SaveDisk) | Ok(AND) | Ok(MOD) => {
+            Ok(Add) | Ok(Sub) | Ok(Mul) | Ok(Div) | Ok(SaveDisk) | Ok(AND) | Ok(MOD) | Ok(SHL) | Ok(SHR)  | Ok(OR)=> {
                 check_op_type(arg1, Reg) && check_op_type(arg2, Reg) && check_op_type(arg3, Reg)
             },
             Ok(LD8) | Ok(LD16) | Ok(LD64) => { check_op_type(arg1, Reg) && check_op_type(arg2, Reg) },

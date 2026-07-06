@@ -35,10 +35,10 @@ fn main() {
         motherboard.step_frame();
 
         // Temporary test pattern.
-        motherboard.debug_fill_vram();
+        //motherboard.debug_fill_vram();
 
         motherboard.render_vram();
 
-        window.update_with_buffer(&motherboard.framebuffer, SCREEN_WIDTH, SCREEN_HEIGHT).expect("Failed to update window");
+        window.update_with_buffer(&motherboard.screen.framebuffer, SCREEN_WIDTH, SCREEN_HEIGHT).expect("Failed to update window");
     }
 }

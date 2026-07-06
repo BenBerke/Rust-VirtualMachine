@@ -2,18 +2,16 @@ use std::fs::File;
 
 use minifb::Window;
 
-use crate::constants::{CYCLES_PER_FRAME, SCREEN_HEIGHT, SCREEN_WIDTH, VRAM_SIZE, VRAM_START, SP_REG, STACK_END};
-
+use crate::constants::*;
 use crate::hardware::bus::Bus;
 use crate::hardware::cpu::Core;
-use crate::hardware::screen;
+use crate::hardware::screen::Screen;
 use crate::input::handle_input;
 
 pub struct Motherboard {
     pub cpu: Core,
     pub bus: Bus,
-
-    pub framebuffer: Vec<u32>,
+    pub screen: Screen,
 }
 
 impl Motherboard {
@@ -21,16 +19,14 @@ impl Motherboard {
         Self {
             cpu: Core::new(),
             bus: Bus::new(disk_drive),
-
-            framebuffer: vec![0; SCREEN_WIDTH * SCREEN_HEIGHT],
+            screen: Screen::new(),
         }
     }
 
     pub fn launch_bios(&mut self, boot_sector: u64) -> bool {
         println!("[BIOS] Launching BIOS...");
 
-        if !self.bus.load_sector_from_disk(boot_sector, 0)
-        {
+        if !self.bus.load_sector_from_disk(boot_sector, 0) {
             println!("[BIOS] Failed to load boot sector");
             return false;
         }
@@ -54,32 +50,25 @@ impl Motherboard {
         false
     }
 
-    pub fn is_alive(&self) -> bool { self.cpu.running && !self.cpu.halted }
+    pub fn is_alive(&self) -> bool {
+        self.cpu.running && !self.cpu.halted
+    }
 
-    pub fn handle_input(&mut self, window: &Window) { handle_input(&mut self.bus, window); }
+    pub fn handle_input(&mut self, window: &Window) {
+        handle_input(&mut self.bus, window);
+    }
 
     pub fn step_frame(&mut self) {
         for _ in 0..CYCLES_PER_FRAME {
-            if self.cpu.halted || !self.cpu.running {
-                break;
-            }
+            if self.cpu.halted || !self.cpu.running { break; }
 
             self.cpu.step(&mut self.bus);
         }
     }
 
-    pub fn render_vram(&mut self) {
-        for i in 0..VRAM_SIZE {
-            let pixel_byte = self.bus.mem[VRAM_START + i];
-            let color_index = pixel_byte & 0x0F;
-
-            self.framebuffer[i] = screen::lookup_palette(color_index as usize);
-        }
-    }
+    pub fn render_vram(&mut self) { self.screen.render(&self.bus.mem); }
 
     pub fn debug_fill_vram(&mut self) {
-        for i in 0..VRAM_SIZE {
-            self.bus.mem[VRAM_START + i] = i as u8 % 16;
-        }
+        for i in 0..VRAM_SIZE { self.bus.mem[VRAM_START + i] = i as u8 % 16; }
     }
 }

@@ -1,19 +1,111 @@
 ; Kernel
 ; $1 = SP
+; $7 = text cursor cell offset
 
 @text
-.LDI $2 #0x41       ; ASCII A
+
+; ------------------------------------------------------------
+; Enable text mode
+; ------------------------------------------------------------
+
+.LDI $2 #0x52C80        ; IO_SCREEN_MODE
+.LDI $3 #1              ; SCREEN_MODE_TEXT
+.STB $2 $3
+
+.CLL :clear_screen
+
+.LDI $7 #0              ; cursor = 0
+
+
+; ------------------------------------------------------------
+; Main input loop
+; ------------------------------------------------------------
 
 :main_loop
-.CLL :read_key
+.CLL :read_key          ; returns keycode in $0
 
-.JEQ :got_a $0 $2   ; compare returned key with A
+.LDI $2 #0x08           ; Backspace
+.JEQ :handle_backspace $0 $2
+
+.LDI $2 #1200           ; TEXT_CELL_COUNT = 40 * 30
+.JGE :wrap_cursor $7 $2
+
+:write_char
+.LDI $2 #0x40000        ; VRAM_START
+.ADD $2 $2 $7           ; address = VRAM_START + cursor
+.STB $2 $0              ; write keycode to text cell
+
+.LDI $2 #1
+.ADD $7 $7 $2           ; cursor++
+
 .JMP :main_loop
 
-:got_a
-.LDI $0 #0
-.HLT
 
+:wrap_cursor
+.LDI $7 #0
+.JMP :write_char
+
+
+; ------------------------------------------------------------
+; Backspace
+; ------------------------------------------------------------
+
+:handle_backspace
+.JZF :main_loop $7      ; if cursor == 0, ignore
+
+.LDI $2 #1
+.SUB $7 $7 $2           ; cursor--
+
+.LDI $2 #0x40000
+.ADD $2 $2 $7           ; address = VRAM_START + cursor
+
+.LDI $3 #0x20           ; space
+.STB $2 $3              ; erase character
+
+.JMP :main_loop
+
+
+; ------------------------------------------------------------
+; Clear screen
+; ------------------------------------------------------------
+
+:clear_screen
+.PUSH $2
+.PUSH $3
+.PUSH $4
+.PUSH $5
+.PUSH $6
+
+.LDI $2 #0x40000        ; VRAM_START
+.LDI $3 #0              ; i = 0
+.LDI $4 #1200           ; TEXT_CELL_COUNT
+.LDI $5 #0x20           ; space
+
+:clear_loop
+.JGE :clear_done $3 $4
+
+.ADD $6 $2 $3           ; address = VRAM_START + i
+.STB $6 $5              ; write space
+
+.LDI $6 #1
+.ADD $3 $3 $6           ; i++
+
+.JMP :clear_loop
+
+:clear_done
+.POP $6
+.POP $5
+.POP $4
+.POP $3
+.POP $2
+.RET
+
+
+; ------------------------------------------------------------
+; read_key()
+; returns:
+;   $0 = keycode
+; ------------------------------------------------------------
 
 :read_key
 .PUSH $2
@@ -22,29 +114,27 @@
 .PUSH $5
 .PUSH $6
 
-.LDI $2 #0x52C60    ; queue head address
-.LDI $3 #0x52C61    ; queue tail address
-.LDI $4 #0x52C62    ; queue data start address
-.LDI $5 #32         ; queue capacity
+.LDI $2 #0x52C5B        ; queue head address
+.LDI $3 #0x52C5C        ; queue tail address
+.LDI $4 #0x52C5D        ; queue data start address
+.LDI $5 #32             ; queue capacity
 
 :read_key_wait
 .WFI
 
-.LDB $0 $2          ; $0 = head
-.LDB $6 $3          ; $6 = tail
+.LDB $0 $2              ; $0 = head
+.LDB $6 $3              ; $6 = tail
 
-.JEQ :read_key_wait $0 $6 ; empty if head == tail
+.JEQ :read_key_wait $0 $6
 
-; read keycode = queue_data[head]
-.ADD $6 $4 $0
-.LDB $0 $6          ; $0 = keycode
+.ADD $6 $4 $0           ; address = queue_data + head
+.LDB $0 $6              ; $0 = keycode
 
-; head = (head + 1) % 32
-.LDB $6 $2
+.LDB $6 $2              ; $6 = old head
 .LDI $4 #1
 .ADD $6 $6 $4
 .MOD $6 $6 $5
-.STB $2 $6
+.STB $2 $6              ; update head
 
 .POP $6
 .POP $5
