@@ -9,7 +9,7 @@
 ; ------------------------------------------------------------
 
 .LDI $2 #0x52C80        ; IO_SCREEN_MODE
-.LDI $3 #1              ; SCREEN_MODE_TEXT
+.LDI $3 #0              ; SCREEN_MODE_TEXT
 .STB $2 $3
 
 .CLL :clear_screen
