@@ -315,6 +315,7 @@ impl Core{
             }
 
             Ok(JGE) => { if self.regs[val2] >= self.regs[val3] { self.pc = val1; } }
+            Ok(JLE) => { if self.regs[val2] <= self.regs[val3] { self.pc = val1; }}
 
             Ok(WFI) => { if bus.get_interrupts() == 0 { self.pc -= 8; return; } }
 

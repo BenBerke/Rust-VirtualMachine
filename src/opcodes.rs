@@ -48,7 +48,7 @@ define_opcodes! {
     ST8  = 17 => "STB", // reg reg / mem[addr_reg] = low 8 bits of value_reg
     ST16 = 18 => "STW", // reg reg / mem[addr_reg..addr_reg+2] = low 16 bits
     ST64 = 19 => "STQ", // reg reg / mem[addr_reg..addr_reg+8] = full 64 bits
-    JGE = 20 => "JGE", // sym reg1 reg2 / jump if reg1 > reg2
+    JGE = 20 => "JGE", // sym reg1 reg2 / jump if reg1 >= reg2
     SYS = 21 => "SYS",
     JumpEqual = 22 => "JEQ",// sym reg1 reg2 / jump if reg1 = reg2
     WFI = 23 => "WFI",
@@ -61,4 +61,5 @@ define_opcodes! {
     OR = 30 => "OR", //reg1 reg2 reg3 / reg 1 = reg2 | reg3
     SHL = 31 => "SHL", // reg1 reg2 reg3 / reg 1 = reg2 << reg3
     SHR = 32 => "SHR", // reg1 reg2 reg3 / reg 1 = reg2 >> reg3
+    JLE = 33 => "JLE" // sym reg2 reg3 / jump if reg <= reg2
 }
