@@ -62,5 +62,7 @@ define_opcodes! {
     SHL = 31 => "SHL", // reg1 reg2 reg3 / reg 1 = reg2 << reg3
     SHR = 32 => "SHR", // reg1 reg2 reg3 / reg 1 = reg2 >> reg3
     JLE = 33 => "JLE", // sym reg2 reg3 / jump if reg <= reg2
-    JAR = 34 => "JAR" // reg / pc = val at reg
+    JAR = 34 => "JAR", // reg / pc = val at reg
+    INC = 35 => "INC", // reg / reg++
+    DEC = 36 => "DEC", // reg / reg--
 }

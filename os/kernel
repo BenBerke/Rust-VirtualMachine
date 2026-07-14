@@ -62,12 +62,395 @@
 ; COMPILER ENTRY POINT
 ; ====================
 
+; Token types
+; 0   = EOF
+; 1   = NUMBER
+; 2   = IDENTIFIER
+; 3   = SEMICOLON
+; 4   = ASSIGN
+; 5   = PLUS
+; 6   = MINUS
+; 7   = LET
+; 8   = RETURN
+; 255 = INVALID
+
+; Registers used by compiler:
+; $1 = Stack Pointer
+; $2 = HLOL source base
+; $3 = Source cursor
+; $4 = Current character / temporary
+; $5 = Temporary
+; $6 = Output machine-code cursor
+; $7 = Current token type
+; $8 = Current token numeric value
+; $9  = token start address
+; $10 = token length
+; $11 = temporary text pointer
+
 :compile_hlol
-; Inputs:
-;   $2 = HLOL Source Address
-;   $6 = Compiled machine code address
-; Reserved:
-;   $1 = Stack Pointer
-; The compiler must write generated instructions starting at $6.
+; Initialize source cursor, $3 = $2
+.LDI $0 #0
+.ADD $3 $2 $0
+
+:compiler_loop
+
+.CLL :next_token
+
+.JZF :compiler_finished $7 ; Stop when EOF is reached
+
+; Stop with an error if token is invalid
+.LDI $5 #255
+.JEQ :compiler_error_invalid_token $7 $5
+
+; RETURN statement
+.LDI $5 #8
+.JEQ :parse_return $7 $5
+
+; Any other token cannot begin a statement yet
+.JMP :compiler_error_unexpected_token
+
+:compiler_finished
+.RET
+
+:compiler_error
+.LDI $0 #0xC001
+.HLT
+
+; == Skip Whitespace ==
+:skip_ws
+
+.LDB $4 $3
+
+; ASCII space
+.LDI $5 #32
+.JEQ :advance_ws $4 $5
+
+; ASCII tab
+.LDI $5 #9
+.JEQ :advance_ws $4 $5
+
+; ASCII newline
+.LDI $5 #10
+.JEQ :advance_ws $4 $5
+
+; ASCII carriage return
+.LDI $5 #13
+.JEQ :advance_ws $4 $5
 
 .RET
+
+:advance_ws
+.INC $3
+.JMP :skip_ws
+
+; ======== Get Next Token =========
+:next_token
+.CLL :skip_ws
+
+; Read current character
+.LDB $4 $3
+
+; Null byte means end of source
+.JZF :token_eof $4
+
+; Semicolon: ';' = 59
+.LDI $5 #59
+.JEQ :token_semicolon $4 $5
+
+; Assignment: '=' = 61
+.LDI $5 #61
+.JEQ :token_assign $4 $5
+
+; Plus: '+' = 43
+.LDI $5 #43
+.JEQ :token_plus $4 $5
+
+; Minus: '-' = 45
+.LDI $5 #45
+.JEQ :token_minus $4 $5
+
+; Check if decimal digit
+.LDI $5 #48
+.JGE :check_number_upper $4 $5
+.JMP :check_identifier_start
+
+:check_number_upper
+.LDI $5 #57
+.JLE :scan_number $4 $5
+
+; Character was greater than '9', so it may be a letter
+.JMP :check_identifier_start
+
+.JMP :token_invalid
+
+; == TOKEN LOADING ==
+
+:token_semicolon
+.LDI $7 #3
+.JMP :advance_one_and_return
+
+:token_assign
+.LDI $7 #4
+.JMP :advance_one_and_return
+
+:token_plus
+.LDI $7 #5
+.JMP :advance_one_and_return
+
+:token_minus
+.LDI $7 #6
+.JMP :advance_one_and_return
+
+:advance_one_and_return
+.LDI $5 #1
+.ADD $3 $3 $5
+.RET
+
+; == SCAN NUMBER DECIMAL ==
+:scan_number
+
+; Parsed value starts at zero
+.LDI $8 #0
+
+:number_loop
+.LDB $4 $3
+
+; Stop if character < '0'
+.LDI $5 #48
+.JLE :number_check_lower $5 $4
+.JMP :number_finished
+
+:number_check_lower
+; Stop if character > '9'
+.LDI $5 #57
+.JLE :number_is_digit $4 $5
+.JMP :number_finished
+
+:number_is_digit
+; Convert ASCII digit into integer
+.LDI $5 #48
+.SUB $4 $4 $5
+
+; value *= 10
+.LDI $5 #10
+.MUL $8 $8 $5
+
+; value += digit
+.ADD $8 $8 $4
+
+; Advance source cursor
+.INC $3
+
+.JMP :number_loop
+
+:number_finished
+.LDI $7 #1
+.RET
+
+; === CHECK IDENTIFIER START ===
+:check_identifier_start
+
+; Underscore: '_'
+.LDI $5 #95
+.JEQ :scan_identifier $4 $5
+
+; Uppercase A-Z
+.LDI $5 #65
+.JGE :check_identifier_upper_end $4 $5
+.JMP :check_identifier_lower
+
+:check_identifier_upper_end
+.LDI $5 #90
+.JLE :scan_identifier $4 $5
+
+; It was above 'Z', so check lowercase
+.JMP :check_identifier_lower
+
+:check_identifier_lower
+.LDI $5 #97
+.JGE :check_identifier_lower_end $4 $5
+.JMP :token_invalid
+
+:check_identifier_lower_end
+.LDI $5 #122
+.JLE :scan_identifier $4 $5
+
+.JMP :token_invalid
+
+; === SCAN IDENTIFIER ===
+
+:scan_identifier
+
+; Save beggining of a word
+.LDI $0 #0
+.ADD $9 $3 $0
+
+; Token length = 0
+.LDI $10 #0
+
+:identifier_loop
+.LDB $4 $3
+
+; Underscore
+.LDI $5 #95
+.JEQ :identifier_consume $4 $5
+
+; Digit: 0-9
+.LDI $5 #48
+.JGE :identifier_check_digit_end $4 $5
+.JMP :identifier_check_upper
+
+:identifier_check_digit_end
+.LDI $5 #57
+.JLE :identifier_consume $4 $5
+
+; Not a digit, continue checking
+.JMP :identifier_check_upper
+
+; Uppercase: A-Z
+:identifier_check_upper
+.LDI $5 #65
+.JGE :identifier_check_upper_end $4 $5
+.JMP :identifier_check_lower
+
+:identifier_check_upper_end
+.LDI $5 #90
+.JLE :identifier_consume $4 $5
+
+.JMP :identifier_check_lower
+
+; Lowercase: a-z
+:identifier_check_lower
+.LDI $5 #97
+.JGE :identifier_check_lower_end $4 $5
+.JMP :identifier_finished
+
+:identifier_check_lower_end
+.LDI $5 #122
+.JLE :identifier_consume $4 $5
+
+.JMP :identifier_finished
+
+:identifier_consume
+.INC $3
+.INC $10
+.JMP :identifier_loop
+
+:identifier_finished
+.CLL :classify_identifier
+.RET
+
+; === CLASSIFY IDENTIFIER ===
+:classify_identifier
+
+; Default to a normal indentifier
+.LDI $7 #2
+
+; "let" has lenght 3
+.LDI $5 #3
+.JEQ :ck_let $10 $5
+
+; "return" has length 6
+.LDI $5 #6
+.JEQ :ck_return $10 $5
+
+.RET
+
+:ck_let
+; $11 = token start
+.LDI $0 #0
+.ADD $11 $9 $0
+
+; 'l' = 108
+.LDB $4 $11
+.LDI $5 #108
+.JEQ :keyword_let_check_e $4 $5
+.RET
+
+:keyword_let_check_e
+.INC $11
+
+; 'e' = 101
+.LDB $4 $11
+.LDI $5 #101
+.JEQ :keyword_let_check_t $4 $5
+.RET
+
+:keyword_let_check_t
+.INC $11
+
+; 't' = 116
+.LDB $4 $11
+.LDI $5 #116
+.JEQ :keyword_let_found $4 $5
+.RET
+
+:keyword_let_found
+.LDI $7 #7
+.RET
+
+:ck_return
+
+.LDI $0 #0
+.ADD $11 $9 $0
+
+; r
+.LDB $4 $11
+.LDI $5 #114
+.JEQ :keyword_return_e $4 $5
+.RET
+
+:keyword_return_e
+.INC $11
+.LDB $4 $11
+.LDI $5 #101
+.JEQ :keyword_return_t $4 $5
+.RET
+
+:keyword_return_t
+.INC $11
+.LDB $4 $11
+.LDI $5 #116
+.JEQ :keyword_return_u $4 $5
+.RET
+
+:keyword_return_u
+.INC $11
+.LDB $4 $11
+.LDI $5 #117
+.JEQ :keyword_return_r $4 $5
+.RET
+
+:keyword_return_r
+.INC $11
+.LDB $4 $11
+.LDI $5 #114
+.JEQ :keyword_return_n $4 $5
+.RET
+
+:keyword_return_n
+.INC $11
+.LDB $4 $11
+.LDI $5 #110
+.JEQ :keyword_return_found $4 $5
+.RET
+
+:keyword_return_found
+.LDI $7 #8
+.RET
+
+; === PARSE: return NUMBER ====
+
+; === EOF ===
+
+:token_eof
+.LDI $7 #0
+.RET
+
+:token_invalid
+.LDI $7 #255
+.RET
+
+; === FAIL SAFE ===
+.LDI $0 #0xDEAD
+.HLT

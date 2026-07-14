@@ -391,6 +391,9 @@ impl Core{
             Ok(SHR) => { self.regs[val1] = self.regs[val2] >> self.regs[val3]; }
             Ok(OR) => { self.regs[val1] = self.regs[val2] | self.regs[val3]; }
 
+            Ok(INC) => { self.regs[val1] += 1; }
+            Ok(DEC) => { self.regs[val1] -= 1; }
+
             Err(_) => {
                 println!("[CPU ERROR] Unknown opcode '{}'", opcode);
                 self.running = false;

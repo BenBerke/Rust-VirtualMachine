@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fs;
 use std::fs::{File, OpenOptions};
-use std::io::{Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::io::{self, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 use cpu_simulation::opcodes::*;
 use cpu_simulation::constants::{BOOTLOADER_BASE_ADDRESS, DATA_START, KERNEL_CODE_ADDRESS, SECTION_DATA, SECTION_TEXT, SIZE_SECTOR};
 
@@ -199,7 +199,7 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
             Ok(JGE) | Ok(JumpEqual) | Ok(JLE) => check_op_type(arg1, Sym) && check_op_type(arg2, Reg) && check_op_type(arg3, Reg),
             Ok(JumpZero) => check_op_type(arg1, Sym) && check_op_type(arg2, Reg),
             Ok(SYS) | Ok(WFI) | Ok(RET) => true,
-            Ok(POP) | Ok(PUSH) | Ok(JAR) => check_op_type(arg1, Reg),
+            Ok(POP) | Ok(PUSH) | Ok(JAR) | Ok(INC) | Ok(DEC) => check_op_type(arg1, Reg),
             Ok(CALL) => check_op_type(arg1, Sym),
             Err(_) => false,
         };
@@ -357,6 +357,42 @@ fn assemble_kernel(source_path: String, disk_file: &mut File, start_sector: u64)
     }
 }
 
+fn inject_ascii_file<P: AsRef<Path>>(
+    source_path: P,
+    disk_file: &mut File,
+    disk_byte_position: u64,
+) -> io::Result<usize> {
+    let source = fs::read_to_string(source_path)?;
+
+    if !source.is_ascii() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Input is not ascii"));
+    }
+
+    let ascii_bytes = source.as_bytes();
+
+    disk_file.seek(SeekFrom::Start(disk_byte_position))?;
+    disk_file.write_all(&ascii_bytes)?;
+    disk_file.write_all(&[0])?;
+    disk_file.flush()?;
+
+    Ok(ascii_bytes.len())
+}
+
+fn inject_ascii_file_at_sector<P: AsRef<Path>>(
+    source_path: P,
+    disk_file: &mut File,
+    start_sector: u64,
+) -> io::Result<usize> {
+    let disk_byte_position = start_sector.checked_mul(SIZE_SECTOR)
+        .ok_or_else(|| { io::Error::new(io::ErrorKind::InvalidInput, "Disk position overflow",)})?;
+
+    inject_ascii_file(
+        source_path,
+        disk_file,
+        disk_byte_position,
+    )
+}
+
 fn main(){
     let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut disk_file = OpenOptions::new()
@@ -377,6 +413,13 @@ fn main(){
         &mut disk_file,
         1
     );
+
+    // 3. Assemble init HLOL
+    inject_ascii_file_at_sector(
+        root_dir.join("os").join("init.hlol"),
+        &mut disk_file,
+        259,
+    ).expect("Failed to inject HLOL source");
 
     println!("[ASSEMBLER] Disk image built with Bootloader and Kernel.");
 }
