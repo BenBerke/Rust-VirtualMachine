@@ -8,8 +8,11 @@
 ; Bootloader does not support @data section
 
 ; === Load Sector 1 to RAM ===
-.LDI $3 #1
-.DTM %512 %1 $3 ; Pull Sector 1 from disk into RAM addresses 512-1024
+.LDI $2 #512 ; Destination Memory Address
+.LDI $3 #1 ; Sector Count
+.LDI $4 #1 ; Start Sector
+
+.DTM $2 $4 $3 ; Pull Sector 1 from disk into RAM addresses 512-1024
 
 ; === Validate Kernel ===
 .LDI $0 #512
@@ -23,9 +26,13 @@
 .HLT
 
 :boot_kernel
-.LDI $0 #514 ; Sector Count
-.LDW $3 $0
-.DTM %512 %1 $3 ; Reload the full kernel
+.LDI $2 #512 ; Destination Memory Address
+.LDI $1 #1 ; Start Sector
+
+.LDI $0 #514 ; Start Count Pointer
+.LDW $3 $0 ; Sector Count
+
+.DTM $2 $4 $3 ; Reload the full kernel
 .JAB %516
 
 ; == Fail Safe ==

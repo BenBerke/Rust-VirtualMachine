@@ -1,170 +1,73 @@
-; Kernel
-; $1 = SP
-; $7 = text cursor cell offset
+; === Kernel ===
+; Loads the HLOL metadata, determines its sector count,
+; loads the HLOL source, compiles it, and executes it.
+;
+; $1 = Stack Pointer. Reserved. Do not modify.
+;
+; Kernel memory:
+;   512 .. 512 + kernel_size
+;
+; HLOL source memory:
+;   0x20000
+;
+; Compiled HLOL destination:
+;   immediately after the loaded kernel
 
-@text
+; == Read Kernel Sector Count ==
+.LDI $2 #514
+.LDW $3 $2 ; $3 = Kernel Sector Count
 
-; ------------------------------------------------------------
-; Enable text mode
-; ------------------------------------------------------------
+; == Calculate Compiled HLOL Destination ==
+.LDI $5 #9
+.SHL $6 $3 $5
 
-.LDI $2 #0x52C80        ; IO_SCREEN_MODE
-.LDI $3 #0              ; SCREEN_MODE_TEXT
-.STB $2 $3
+.LDI $2 #512
+.ADD $6 $6 $2 ; $6 now points immediately after the kernel in RAM
 
-.CLL :clear_screen
-
-.LDI $7 #0              ; cursor = 0
-
-
-; ------------------------------------------------------------
-; Main input loop
-; ------------------------------------------------------------
-
-:main_loop
-.CLL :read_key          ; returns keycode in $0
-
-.LDI $2 #0x08           ; Backspace
-.JEQ :handle_backspace $0 $2
-
-.LDI $2 #1200           ; TEXT_CELL_COUNT = 40 * 30
-.JGE :wrap_cursor $7 $2
-
-:write_char
-.LDI $2 #0x40000        ; VRAM_START
-
-.ADD $3 $7 $7           ; byte_offset = cursor * 2
-.ADD $2 $2 $3           ; address = VRAM_START + byte_offset
-
-.STB $2 $0              ; glyph byte
-
-.LDI $3 #1
-.ADD $2 $2 $3           ; attr address
-
-.LDI $3 #0x30           ; black text on white background
-.STB $2 $3              ; attr byte
-
-.LDI $2 #1
-.ADD $7 $7 $2           ; cursor++
-
-.JMP :main_loop
-
-
-:wrap_cursor
-.LDI $7 #0
-.JMP :write_char
-
-
-; ------------------------------------------------------------
-; Backspace
-; ------------------------------------------------------------
-
-:handle_backspace
-.JZF :main_loop $7      ; if cursor == 0, ignore
-
-.LDI $2 #1
-.SUB $7 $7 $2           ; cursor--
-
-.LDI $2 #0x40000
-.ADD $3 $7 $7           ; byte_offset = cursor * 2
-.ADD $2 $2 $3           ; address = VRAM_START + byte_offset
-
-.LDI $3 #0x20           ; space
-.STB $2 $3              ; erase glyph
-
-.LDI $3 #1
-.ADD $2 $2 $3           ; attr address
-
-.LDI $3 #0x30           ; black on white
-.STB $2 $3
-
-.JMP :main_loop
-
-
-; ------------------------------------------------------------
-; Clear screen
-; ------------------------------------------------------------
-
-:clear_screen
-.PUSH $2
-.PUSH $3
-.PUSH $4
-.PUSH $5
-.PUSH $6
-
-.LDI $2 #0x40000        ; VRAM_START
-.LDI $3 #0              ; i = 0
-.LDI $4 #1200           ; TEXT_CELL_COUNT
-.LDI $5 #0x20           ; space
-
-:clear_loop
-.JGE :clear_done $3 $4
-
-.ADD $6 $3 $3           ; byte_offset = i * 2
-.ADD $6 $2 $6           ; address = VRAM_START + byte_offset
-
-.STB $6 $5              ; glyph byte = space
-
-.LDI $5 #1
-.ADD $6 $6 $5           ; attr address
-
-.LDI $5 #0x30           ; black text on white background
-.STB $6 $5              ; attr byte
-
-.LDI $5 #0x20           ; restore space
-
-.LDI $6 #1
-.ADD $3 $3 $6           ; i++
-
-.JMP :clear_loop
-
-:clear_done
-.POP $6
-.POP $5
-.POP $4
-.POP $3
-.POP $2
-.RET
-
-
-; ------------------------------------------------------------
-; read_key()
-; returns:
-;   $0 = keycode
-; ------------------------------------------------------------
-
-:read_key
-.PUSH $2
-.PUSH $3
-.PUSH $4
-.PUSH $5
-.PUSH $6
-
-.LDI $2 #0x52C5B        ; queue head address
-.LDI $3 #0x52C5C        ; queue tail address
-.LDI $4 #0x52C5D        ; queue data start address
-.LDI $5 #32             ; queue capacity
-
-:read_key_wait
-.WFI
-
-.LDB $0 $2              ; $0 = head
-.LDB $6 $3              ; $6 = tail
-
-.JEQ :read_key_wait $0 $6
-
-.ADD $6 $4 $0           ; address = queue_data + head
-.LDB $0 $6              ; $0 = keycode
-
-.LDB $6 $2              ; $6 = old head
+; == Calculate HLOL Metadata Disk Sector ==
 .LDI $4 #1
-.ADD $6 $6 $4
-.MOD $6 $6 $5
-.STB $2 $6              ; update head
+.ADD $4 $4 $3 ; ; $4 now contains the HLOL metadata sector
 
-.POP $6
-.POP $5
-.POP $4
-.POP $3
-.POP $2
+; == Load HLOL Metadata Sector ==
+.LDI $2 #0x20000 ; $2 = temporary metadata destination
+.LDI $3 #1 ; Load exactly one metadata sector
+
+.DTM $2 $4 $3
+
+; == Read HLOL Sector Count ==
+.LDI $0 #0x20000
+.LDW $5 $0 ; $5 = HLOL Source Sector Count
+
+.JZF :hlol_missing $5
+
+; == Move From Metadata Sector to Source Sector ==
+.LDI $3 #1
+.ADD $4 $4 $3 ; $4 now contains the first HLOL source sector
+
+; == Load HLOL Source ==
+.LDI $2 #0x20000
+.DTM $2 $4 $5
+
+; == Compiler and Execute HLOL ==
+.JMP :compile_hlol
+.JAR $6
+; $6 MUST POINT TO GENERATED MACHINE CODE
+
+; == Error: HLOL Missing ==
+:hlol_missing
+.LDI $0 #0xDEAD
+.HLT
+
+; ====================
+; COMPILER ENTRY POINT
+; ====================
+
+:compile_hlol
+; Inputs:
+;   $2 = HLOL Source Address
+;   $6 = Compiled machine code address
+; Reserved:
+;   $1 = Stack Pointer
+; The compiler must write generated instructions starting at $6.
+
 .RET

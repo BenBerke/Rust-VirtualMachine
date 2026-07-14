@@ -51,7 +51,7 @@ define_opcodes! {
     JGE = 20 => "JGE", // sym reg1 reg2 / jump if reg1 >= reg2
     SYS = 21 => "SYS",
     JumpEqual = 22 => "JEQ",// sym reg1 reg2 / jump if reg1 = reg2
-    WFI = 23 => "WFI",
+    WFI = 23 => "WFI", // Wait for Interrupt
     AND = 24 => "AND", // reg1 reg2 reg3 / reg1 = reg2 & reg3
     MOD = 25 => "MOD", //reg1 reg2 reg3 / reg1 = reg2 % reg3
     PUSH = 26 => "PUSH", // reg
@@ -61,5 +61,6 @@ define_opcodes! {
     OR = 30 => "OR", //reg1 reg2 reg3 / reg 1 = reg2 | reg3
     SHL = 31 => "SHL", // reg1 reg2 reg3 / reg 1 = reg2 << reg3
     SHR = 32 => "SHR", // reg1 reg2 reg3 / reg 1 = reg2 >> reg3
-    JLE = 33 => "JLE" // sym reg2 reg3 / jump if reg <= reg2
+    JLE = 33 => "JLE", // sym reg2 reg3 / jump if reg <= reg2
+    JAR = 34 => "JAR" // reg / pc = val at reg
 }

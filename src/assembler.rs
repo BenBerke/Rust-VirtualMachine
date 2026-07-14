@@ -189,7 +189,7 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
         let is_valid = match Opcode::try_from(opcode_val as u16) {
             Ok(Halt) => true,
             Ok(LoadImm) => check_op_type(arg1, Reg) && (check_op_type(arg2, Imm) || check_op_type(arg2, Data)),
-            Ok(Add) | Ok(Sub) | Ok(Mul) | Ok(Div) | Ok(SaveDisk) | Ok(AND) | Ok(MOD) | Ok(SHL) | Ok(SHR)  | Ok(OR)=> {
+            Ok(Add) | Ok(Sub) | Ok(Mul) | Ok(Div) | Ok(SaveDisk) | Ok(AND) | Ok(MOD) | Ok(SHL) | Ok(SHR)  | Ok(OR) | Ok(DTM) => {
                 check_op_type(arg1, Reg) && check_op_type(arg2, Reg) && check_op_type(arg3, Reg)
             },
             Ok(LD8) | Ok(LD16) | Ok(LD64) => { check_op_type(arg1, Reg) && check_op_type(arg2, Reg) },
@@ -198,9 +198,8 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
             Ok(JmpAbs) => check_op_type(arg1, Imm32),
             Ok(JGE) | Ok(JumpEqual) | Ok(JLE) => check_op_type(arg1, Sym) && check_op_type(arg2, Reg) && check_op_type(arg3, Reg),
             Ok(JumpZero) => check_op_type(arg1, Sym) && check_op_type(arg2, Reg),
-            Ok(DTM) => check_op_type(arg1, Imm32) && check_op_type(arg2, Imm32) && check_op_type(arg3, Reg),
             Ok(SYS) | Ok(WFI) | Ok(RET) => true,
-            Ok(POP) | Ok(PUSH) => check_op_type(arg1, Reg),
+            Ok(POP) | Ok(PUSH) | Ok(JAR) => check_op_type(arg1, Reg),
             Ok(CALL) => check_op_type(arg1, Sym),
             Err(_) => false,
         };

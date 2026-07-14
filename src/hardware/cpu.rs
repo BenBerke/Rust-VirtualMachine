@@ -265,15 +265,14 @@ impl Core{
             }
 
             Ok(DTM) => {
-                let mut ram_dest = val1;
-                let start_sector = val2 as u64;
-
-                if val3 >= self.regs.len() {
+                if val1 >= self.regs.len() || val2 >= self.regs.len() || val3 >= self.regs.len() {
                     println!("[CPU ERROR] Invalid register in DTM.");
                     self.running = false;
                     return;
                 }
 
+                let mut ram_dest = self.regs[val1] as usize;
+                let start_sector = self.regs[val2];
                 let sector_count = self.regs[val3];
 
                 for i in 0..sector_count {
@@ -316,6 +315,17 @@ impl Core{
 
             Ok(JGE) => { if self.regs[val2] >= self.regs[val3] { self.pc = val1; } }
             Ok(JLE) => { if self.regs[val2] <= self.regs[val3] { self.pc = val1; }}
+            Ok(JAR) => {
+                let src_reg = val1;
+
+                if src_reg >= self.regs.len() {
+                    println!("[CPU ERROR] Invalid register in JAR: ${}", src_reg);
+                    self.running = false;
+                    return;
+                }
+
+                self.pc = self.regs[src_reg] as usize;
+            }
 
             Ok(WFI) => { if bus.get_interrupts() == 0 { self.pc -= 8; return; } }
 
