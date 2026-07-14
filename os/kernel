@@ -94,20 +94,14 @@
 
 :compiler_loop
 
-.CLL :next_token
+; EOF means compilation is complete
+.JZF :compiler_finisged $7
 
-.JZF :compiler_finished $7 ; Stop when EOF is reached
+; Parse one complete statement
+.CLL :parse_statement
 
-; Stop with an error if token is invalid
-.LDI $5 #255
-.JEQ :compiler_error_invalid_token $7 $5
-
-; RETURN statement
-.LDI $5 #8
-.JEQ :parse_return $7 $5
-
-; Any other token cannot begin a statement yet
-.JMP :compiler_error_unexpected_token
+; parse_statement leaves the next unconsumed token in $7
+.JMP :compiler_loop
 
 :compiler_finished
 .RET
@@ -439,7 +433,22 @@
 .LDI $7 #8
 .RET
 
-; === PARSE: return NUMBER ====
+; === PARSE STATEMENT ====
+:parse_statement
+; Invalid Lexer Token
+.LDI $5 #255
+.JEQ :compiler_error_invalid_token $7 $5
+
+.LDI $5 #7
+.JEQ :parse_let_statement $7 $5
+
+; return statement
+.LDI $5 #8
+.JEQ :parse_return_statement $7 $5
+
+; todo Add IF, WHILE, function calls, etc. here later.
+
+.JMP :compiler_error_invalid_statement
 
 ; === EOF ===
 

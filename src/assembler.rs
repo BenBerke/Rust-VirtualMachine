@@ -47,6 +47,15 @@ fn parse_number(clean: &str)->Result<u64, String>{
     clean.parse::<u64>().map_err(|_| format!("invalid decimal literal '{}'", clean))
 }
 
+fn parse_ascii_string(token: &str) -> Result<Vec<u8>, String> {
+    let Some(inner) = token.strip_prefix('"').and_then(|value| value.strip_suffix('"'))
+    else { return Err(format!("expected quoted ASCII string, got '{}'", token)); };
+
+    if !inner.is_ascii() { return Err(format!("string contains non-ASCII characters: '{}'", token)); }
+
+    Ok(inner.as_bytes().to_vec())
+}
+
 // Assume format: [Opcode (16bit) | Op1 (16bit) | Op2 (16bit) | Op3 (16bit)]
 fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize) -> Vec<u8> {
     use Operand::*;
@@ -118,10 +127,22 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
                     "dw" => 2,
                     "dd" => 4,
                     "dq" => 8,
-                    _=>1,
+
+                    "kw" => {
+                        panic!("[COMPILER ERROR] Expected: !label kw #TOKEN \"keyword\" at line {}", line.line_number);
+
+                        let keyword = parse_ascii_string(&line.tokens[3]).unwrap_or_else(|error| {panic!("[COMPILER ERROR] {} at line {}", error, line.line_number);});
+
+                        if keyword.len() > u8::MAX as usize { panic!("[COMPILER ERROR] Keyword is too long at line {}", line.line_number); }
+
+                        (keyword.len() + 2) as u8
+                    }
+
+                    "kwend" => 2,
+                    _ => panic!("[COMPILER ERROR] Unknown data type '{}' at line {}", data_type, line.line_number),
                 };
 
-                current_data_address += allocation_size;
+                current_data_address += allocation_size as usize;
             }
 
             continue;
