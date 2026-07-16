@@ -27,7 +27,7 @@
 
 :boot_kernel
 .LDI $2 #512 ; Destination Memory Address
-.LDI $1 #1 ; Start Sector
+.LDI $4 #1 ; Start Sector
 
 .LDI $0 #514 ; Start Count Pointer
 .LDW $3 $0 ; Sector Count

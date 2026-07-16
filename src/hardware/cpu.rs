@@ -1,7 +1,7 @@
 use crate::constants::*;
 use crate::hardware::bus::Bus;
 use crate::opcodes::*;
-use crate::opcodes::Opcode::{AND, PUSH, SHL};
+use crate::opcodes::Opcode::{AND, JAR, PUSH, SHL};
 
 pub struct Core{
     pub regs: [u64; REG_COUNT as usize], // reg0 = sys call, reg 1 = SP
@@ -108,12 +108,21 @@ impl Core{
                 let dest_reg = val1;
 
                 if dest_reg >= self.regs.len() {
-                    println!("[CPU ERROR] Invalid register in LDI.");
+                    println!("[CPU ERROR] Invalid register in LDI at PC=0x{:05X}, raw=0x{:016X}, dest=${}, val2=0x{:04X}, val3=0x{:04X}",
+                        self.pc,
+                        instr,
+                        dest_reg,
+                        val2,
+                        val3
+                    );
+
+                    println!("[CPU ERROR] Bytes: {:02X?}", instr_bytes);
+
                     self.running = false;
                     return;
                 }
 
-                let imm32 = ((val2 as u64) << 16) | (val3 as u64);
+                let imm32 = ((val2 as u64) << 16) | val3 as u64;
                 self.regs[dest_reg] = imm32;
             }
 
@@ -238,8 +247,49 @@ impl Core{
                 for i in 0..8 { bus.mem[addr + i] = ((value >> (i * 8)) & 0xFF) as u8; }
             }
 
-            Ok(Jmp) => { self.pc = val1; } // Jumps using a register
-            Ok(JmpAbs) => { self.pc = val1; } // Jumps with a literal
+            Ok(Jmp) => {
+                let target = val1;
+
+                if target < INSTR_START || target >= INSTR_END {
+                    println!("[CPU ERROR] JMP target outside code memory: 0x{:X}", target);
+                    self.running = false;
+                    return;
+                }
+
+                self.pc = target;
+            }
+
+            Ok(JmpAbs) => {
+                let target = val1;
+
+                if target < INSTR_START || target >= INSTR_END {
+                    println!("[CPU ERROR] JAB target outside code memory: 0x{:X}", target);
+                    self.running = false;
+                    return;
+                }
+
+                self.pc = target;
+            }
+
+            Ok(JAR) => {
+                let src_reg = val1;
+
+                if src_reg >= self.regs.len() {
+                    println!("[CPU ERROR] Invalid register in JAR: ${}", src_reg);
+                    self.running = false;
+                    return;
+                }
+
+                let target = self.regs[src_reg] as usize;
+
+                if target < INSTR_START || target >= INSTR_END {
+                    println!("[CPU ERROR] JAR target outside code memory: 0x{:X}", target);
+                    self.running = false;
+                    return;
+                }
+
+                self.pc = target;
+            }
             Ok(JumpZero) => {
                 if val2 >= self.regs.len() {
                     println!("[CPU ERROR] Invalid register in JZF.");
@@ -315,17 +365,6 @@ impl Core{
 
             Ok(JGE) => { if self.regs[val2] >= self.regs[val3] { self.pc = val1; } }
             Ok(JLE) => { if self.regs[val2] <= self.regs[val3] { self.pc = val1; }}
-            Ok(JAR) => {
-                let src_reg = val1;
-
-                if src_reg >= self.regs.len() {
-                    println!("[CPU ERROR] Invalid register in JAR: ${}", src_reg);
-                    self.running = false;
-                    return;
-                }
-
-                self.pc = self.regs[src_reg] as usize;
-            }
 
             Ok(WFI) => { if bus.get_interrupts() == 0 { self.pc -= 8; return; } }
 

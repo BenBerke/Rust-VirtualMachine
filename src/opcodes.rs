@@ -41,7 +41,7 @@ define_opcodes! {
     JumpZero = 10 => "JZF",     // sym reg / reg = 0 -> pc = sym
     LoadImm     = 11 => "LDI",     // reg imm / reg = imm
 
-    DTM     = 13 => "DTM",     // imm32a imm32b reg / mem start, start sector, sector count
+    DTM     = 13 => "DTM",     // reg reg reg / mem start, start sector, sector count
     LD8 = 14 => "LDB", // reg reg / Load byte from memory
     LD16  = 15 => "LDW", // reg reg / Load word from memory
     LD64  = 16 => "LDQ", // reg reg / Load qword from memory

@@ -118,32 +118,64 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
         if let Some(label) = first_token.strip_prefix('@') { current_section = label.to_string(); continue; }
 
         if current_section == SECTION_DATA{
-            if let Some(label) = first_token.strip_prefix('!') {
-                let data_type = &line.tokens[1];
-                symbol_table.insert(label.to_string(), current_data_address);
+            let Some(label) = first_token.strip_prefix('!') else {
+                panic!("[COMPILER ERROR] Expected data label starting with '!' at line {}", line.line_number);
+            };
 
-                let allocation_size = match data_type.as_str() {
-                    "db" => 1,
-                    "dw" => 2,
-                    "dd" => 4,
-                    "dq" => 8,
+            if line.tokens.len() < 2 { panic!("[COMPILER ERROR] Missing data type at line {}", line.line_number); }
 
-                    "kw" => {
-                        panic!("[COMPILER ERROR] Expected: !label kw #TOKEN \"keyword\" at line {}", line.line_number);
+            let data_type = &line.tokens[1];
 
-                        let keyword = parse_ascii_string(&line.tokens[3]).unwrap_or_else(|error| {panic!("[COMPILER ERROR] {} at line {}", error, line.line_number);});
+            let allocation_size: usize = match data_type.as_str() {
+                "db" => {
+                    if line.tokens.len() != 3 { panic!( "[COMPILER ERROR] Expected: !label db #value at line {}", line.line_number); }
+                    1
+                }
 
-                        if keyword.len() > u8::MAX as usize { panic!("[COMPILER ERROR] Keyword is too long at line {}", line.line_number); }
+                "dw" => {
+                    if line.tokens.len() != 3 { panic!("[COMPILER ERROR] Expected: !label dw #value at line {}", line.line_number); }
+                    2
+                }
 
-                        (keyword.len() + 2) as u8
+                "dd" => {
+                    if line.tokens.len() != 3 { panic!("[COMPILER ERROR] Expected: !label dd #value at line {}", line.line_number); }
+                    4
+                }
+
+                "dq" => {
+                    if line.tokens.len() != 3 { panic!("[COMPILER ERROR] Expected: !label dq #value at line {}", line.line_number); }
+                    8
+                }
+
+                "kw" => {
+                    if line.tokens.len() != 4 { panic!("[COMPILER ERROR] Expected: !label kw #TOKEN \"keyword\" at line {}", line.line_number); }
+
+                    let keyword = parse_ascii_string(&line.tokens[3]).unwrap_or_else(|error| {
+                            panic!("[COMPILER ERROR] {} at line {}", error, line.line_number) });
+
+                    if keyword.is_empty() {
+                        panic!("[COMPILER ERROR] Keyword cannot be empty at line {}", line.line_number);
                     }
 
-                    "kwend" => 2,
-                    _ => panic!("[COMPILER ERROR] Unknown data type '{}' at line {}", data_type, line.line_number),
-                };
+                    if keyword.len() > u8::MAX as usize { panic!("[COMPILER ERROR] Keyword is too long at line {}", line.line_number); }
 
-                current_data_address += allocation_size as usize;
-            }
+                    // One byte for token type
+                    // One byte for keyword length
+                    // Remaining bytes for the ASCII keyword
+                    2 + keyword.len()
+                }
+
+                "kwend" => {
+                    if line.tokens.len() != 2 { panic!("[COMPILER ERROR] Expected: !label kwend at line {}", line.line_number); }
+                    // token type 0 + length 0
+                    2
+                }
+
+                _ => { panic!("[COMPILER ERROR] Unknown data type '{}' at line {}", data_type, line.line_number); }
+            };
+
+            symbol_table.insert(label.to_string(), current_data_address);
+            current_data_address += allocation_size;
 
             continue;
         }
@@ -163,9 +195,32 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
         let first_token = &line.tokens[0];
 
         if let Some(label) = first_token.strip_prefix('@') { current_section = label.to_string(); continue; }
-
-        if current_section == SECTION_DATA{
+        if current_section == SECTION_DATA {
             let data_type = &line.tokens[1];
+
+            if data_type == "kw" {
+                let token_type = parse_number(line.tokens[2].trim_start_matches('#')).unwrap_or_else(|_| {
+                    panic!("[COMPILER ERROR] Invalid keyword token at line: {}", line.line_number)
+                });
+
+                let keyword = parse_ascii_string(&line.tokens[3])
+                    .unwrap_or_else(|error| {
+                        panic!("[COMPILER ERROR] {} at line: {}", error, line.line_number)
+                    });
+
+                data_bytes.push(token_type as u8);
+                data_bytes.push(keyword.len() as u8);
+                data_bytes.extend_from_slice(&keyword);
+
+                continue;
+            }
+
+            if data_type == "kwend" {
+                data_bytes.push(0);
+                data_bytes.push(0);
+                continue;
+            }
+
             let data_val = &line.tokens[2];
 
             let clean_val = parse_number(data_val.trim_start_matches(|c| c == '#' || c == '%')).unwrap_or_else(|_| {
@@ -193,10 +248,7 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
         let opcode_val = get_opcode_val(opcode);
 
         if opcode_val == !0 {
-            println!(
-                "{}[COMPILER ERROR]{} Unknown instruction '{}' on line: {}",
-                "\x1b[31m", "\x1b[0m", opcode, line.line_number
-            );
+            println!("{}[COMPILER ERROR]{} Unknown instruction '{}' on line: {}", "\x1b[31m", "\x1b[0m", opcode, line.line_number);
             standard_compilation_success = false;
             break;
         }
@@ -242,12 +294,7 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
         let val1 = match resolve_arg(arg1) {
             Ok(v) => v,
             Err(e) => {
-                println!(
-                    "\x1b[1;31m[COMPILER ERROR]\x1b[0m Failed to parse arg1 '{}' on line {}: {}",
-                    arg1,
-                    line.line_number,
-                    e
-                );
+                println!("\x1b[1;31m[COMPILER ERROR]\x1b[0m Failed to parse arg1 '{}' on line {}: {}", arg1, line.line_number, e);
                 standard_compilation_success = false;
                 break;
             }
@@ -256,12 +303,7 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
         let val2 = match resolve_arg(arg2) {
             Ok(v) => v,
             Err(e) => {
-                println!(
-                    "\x1b[1;31m[COMPILER ERROR]\x1b[0m Failed to parse arg2 '{}' on line {}: {}",
-                    arg2,
-                    line.line_number,
-                    e
-                );
+                println!("\x1b[1;31m[COMPILER ERROR]\x1b[0m Failed to parse arg2 '{}' on line {}: {}", arg2, line.line_number, e);
                 standard_compilation_success = false;
                 break;
             }
@@ -270,12 +312,7 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
         let val3 = match resolve_arg(arg3) {
             Ok(v) => v,
             Err(e) => {
-                println!(
-                    "\x1b[1;31m[COMPILER ERROR]\x1b[0m Failed to parse arg3 '{}' on line {}: {}",
-                    arg3,
-                    line.line_number,
-                    e
-                );
+                println!("\x1b[1;31m[COMPILER ERROR]\x1b[0m Failed to parse arg3 '{}' on line {}: {}", arg3, line.line_number, e);
                 standard_compilation_success = false;
                 break;
             }
@@ -320,10 +357,7 @@ fn compile_source(source_path: &str, use_data_layout: bool, base_address: usize)
 
     if !standard_compilation_success { compiled_bytes.clear(); std::process::exit(1);}
     if use_data_layout {
-        while compiled_bytes.len() < DATA_START {
-            compiled_bytes.push(0);
-        }
-
+        while compiled_bytes.len() < DATA_START { compiled_bytes.push(0); }
         compiled_bytes.extend(data_bytes);
     }
     compiled_bytes
@@ -378,16 +412,10 @@ fn assemble_kernel(source_path: String, disk_file: &mut File, start_sector: u64)
     }
 }
 
-fn inject_ascii_file<P: AsRef<Path>>(
-    source_path: P,
-    disk_file: &mut File,
-    disk_byte_position: u64,
-) -> io::Result<usize> {
+fn inject_ascii_file<P: AsRef<Path>>(source_path: P, disk_file: &mut File, disk_byte_position: u64, ) -> io::Result<usize> {
     let source = fs::read_to_string(source_path)?;
 
-    if !source.is_ascii() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Input is not ascii"));
-    }
+    if !source.is_ascii() { return Err(io::Error::new(io::ErrorKind::InvalidInput, "Input is not ascii")); }
 
     let ascii_bytes = source.as_bytes();
 
@@ -399,19 +427,11 @@ fn inject_ascii_file<P: AsRef<Path>>(
     Ok(ascii_bytes.len())
 }
 
-fn inject_ascii_file_at_sector<P: AsRef<Path>>(
-    source_path: P,
-    disk_file: &mut File,
-    start_sector: u64,
-) -> io::Result<usize> {
+fn inject_ascii_file_at_sector<P: AsRef<Path>>(source_path: P, disk_file: &mut File, start_sector: u64, ) -> io::Result<usize> {
     let disk_byte_position = start_sector.checked_mul(SIZE_SECTOR)
         .ok_or_else(|| { io::Error::new(io::ErrorKind::InvalidInput, "Disk position overflow",)})?;
 
-    inject_ascii_file(
-        source_path,
-        disk_file,
-        disk_byte_position,
-    )
+    inject_ascii_file(source_path, disk_file, disk_byte_position, )
 }
 
 fn main(){
@@ -422,25 +442,14 @@ fn main(){
         .expect("Couldn't open disk file");
 
     // 1. Assemble the Bootloader into Sector 0
-    assemble_bootloader(
-        root_dir.join("os").join("boot_loader").to_string_lossy().into_owned(),
-        &mut disk_file,
-        0
-    );
+    assemble_bootloader(root_dir.join("os").join("boot_loader").to_string_lossy().into_owned(), &mut disk_file, 0);
 
     // 2. Assemble the Kernel starting from Sector 1
-    assemble_kernel(
-        root_dir.join("os").join("kernel").to_string_lossy().into_owned(),
-        &mut disk_file,
-        1
-    );
+    assemble_kernel(root_dir.join("os").join("kernel").to_string_lossy().into_owned(), &mut disk_file, 1);
 
     // 3. Assemble init HLOL
-    inject_ascii_file_at_sector(
-        root_dir.join("os").join("init.hlol"),
-        &mut disk_file,
-        259,
-    ).expect("Failed to inject HLOL source");
+    inject_ascii_file_at_sector(root_dir.join("os").join("init.hlol"), &mut disk_file, 259,)
+        .expect("Failed to inject HLOL source");
 
     println!("[ASSEMBLER] Disk image built with Bootloader and Kernel.");
 }
